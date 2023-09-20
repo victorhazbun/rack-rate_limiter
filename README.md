@@ -2,13 +2,13 @@
 
 A Ruby on Rails middleware that uses Redis (sorted sets) to implement rate limiting.
 
-**Motivation:**
+## Motivation
 
 Traditional rate limiters using counters can be susceptible to race conditions, where two processes simultaneously attempt to increment a counter, resulting in an incorrect count. This can lead to users being able to perform more actions than they are allowed.
 
 Sorted sets provide a more robust and scalable way to implement rate limiters. By using a sorted set to store the times of recent actions, we can ensure that all operations are performed atomically, preventing race conditions. This also allows us to use one limiter for multiple rates, such as limiting the number of actions per minute and per second.
 
-Example
+## How it works
 
 To implement a rate limiter using a sorted set, we can use the following algorithm:
 
@@ -20,6 +20,8 @@ To implement a rate limiter using a sorted set, we can use the following algorit
 - Set a TTL equal to the rate-limiting interval on the set.
 - Count the number of fetched elements. If it exceeds the limit, don't allow the action.
 - Compare the largest fetched element to the current timestamp. If they're too close, don't allow the action.
+
+Credits: Peter Hayes - https://engineering.classdojo.com/blog/2015/02/06/rolling-rate-limiter/
 
 **Benefits**
 
@@ -54,7 +56,6 @@ redis = Redis.new
 
 # Uses Redis sorted sets for rate limiting.
 # See: https://redis.io/docs/data-types/sorted-sets/
-# Credits: https://engineering.classdojo.com/blog/2015/02/06/rolling-rate-limiter/
 limiter = Rack::RateLimiter::RedisLimiter.new(limit:, interval:, redis:)
 
 # Redis key is resolved using the user IP address from the http request
