@@ -7,11 +7,12 @@ require 'redis'
 RSpec.describe RedisLimiter do
   let(:namespace) { SecureRandom.uuid }
   let(:redis) { Redis.new }
+  let(:logger) { Logger.new($stdout) }
   let(:key) { "#{namespace}:my-key" }
   let(:limit) { 3 }
   let(:interval) { 60 }
 
-  let(:redis_limiter) { described_class.new(limit:, interval:, redis:) }
+  let(:redis_limiter) { described_class.new(limit:, interval:, redis:, logger:) }
 
   after do
     redis.keys("#{namespace}:*").each do |key|
@@ -68,6 +69,29 @@ RSpec.describe RedisLimiter do
           # Expect the `allowed?` method to return false.
           expect(redis_limiter.allowed?(key)).to be false
         end
+      end
+    end
+
+    context 'on redis command error' do
+      let(:redis_error_message) { 'Redis trolled you' }
+
+      before do
+        allow(redis).to receive(:zadd).and_raise(Redis::CommandError.new(redis_error_message))
+        allow($stdout).to receive(:write)
+      end
+
+      it 'reverts changes to the sorted set' do
+        expect { redis_limiter.allowed?(key) }.not_to(change { redis.zrange(key, 0, -1) })
+      end
+
+      it 'is not allowed' do
+        expect(redis_limiter.allowed?(key)).to be_falsey
+      end
+
+      it 'logs the error message' do
+        expect(logger).to receive(:error).with("Redis error: #{redis_error_message}")
+
+        redis_limiter.allowed?(key)
       end
     end
   end

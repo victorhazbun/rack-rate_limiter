@@ -94,6 +94,19 @@ Rails.application.config.middleware.use(Rack::RateLimiter, options:)
 
 ```
 
+### Using custom logger
+
+```ruby
+logger = Rails.logger # MUST respond to #error
+
+limiter = Rack::RateLimiter::RedisLimiter.new(limit:, interval:, redis:, logger:)
+
+options = { limiter:, key_resolver:, failed_response: }
+
+Rails.application.config.middleware.use(Rack::RateLimiter, options:)
+
+```
+
 ## Contributing
 
 TODO: Navigate to `myapp` (small Rails app inside `Rack::RateLimiter` repository used for development)
