@@ -2,6 +2,7 @@
 
 require_relative 'rate_limiter/version'
 require_relative 'rate_limiter/redis_limiter'
+require_relative 'rate_limiter/http_request_resolver'
 require_relative 'rate_limiter/middleware'
 
 module Rack

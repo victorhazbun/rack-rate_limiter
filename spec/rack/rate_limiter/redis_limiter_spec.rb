@@ -11,9 +11,9 @@ RSpec.describe RedisLimiter do
   let(:limit) { 3 }
   let(:interval) { 60 }
 
-  let(:redis_limiter) { described_class.new(key:, limit:, interval:, redis:) }
+  let(:redis_limiter) { described_class.new(limit:, interval:, redis:) }
 
-  before do
+  after do
     redis.keys("#{namespace}:*").each do |key|
       redis.del(key)
     end
@@ -23,7 +23,7 @@ RSpec.describe RedisLimiter do
     context 'when checking serially' do
       it 'is allowed until exceeds the limit' do
         results = (limit + 1).times.map do
-          redis_limiter.allowed?
+          redis_limiter.allowed?(key)
         end
         expect(results).to eq([true, true, true, false])
       end
@@ -42,7 +42,7 @@ RSpec.describe RedisLimiter do
             # Simulate calls made by different threads
             calls = (limit / concurrent) + 1
             calls.times do
-              results << redis_limiter.allowed?
+              results << redis_limiter.allowed?(key)
             end
           end
         end
@@ -66,7 +66,7 @@ RSpec.describe RedisLimiter do
           redis.zadd(key, Time.now.to_f - (interval * 0.9), Time.now.to_f - (interval * 0.9))
 
           # Expect the `allowed?` method to return false.
-          expect(redis_limiter.allowed?).to be false
+          expect(redis_limiter.allowed?(key)).to be false
         end
       end
     end

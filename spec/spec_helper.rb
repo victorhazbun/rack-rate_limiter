@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require 'rack/rate_limiter'
+require 'byebug'
 require 'timecop'
 
 RSpec.configure do |config|
