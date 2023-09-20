@@ -1,33 +1,32 @@
 # Rack::RateLimiter
 
-A Ruby on Rails middleware that uses Redis (sorted sets) to implement rate limiting.
+![build status](https://github.com/victorhazbun/rack-rate_limiter/actions/workflows/main.yml/badge.svg)
 
-## Motivation
+This is an implementation of a rate limiter in Ruby that allows for rate limiting with a rolling window. It can use either Redis limiter or custom limiter. If Redis is used, multiple rate limiters can share one instance with different namespaces, and multiple processes can share rate limiter state safely.
 
-Traditional rate limiters using counters can be susceptible to race conditions, where two processes simultaneously attempt to increment a counter, resulting in an incorrect count. This can lead to users being able to perform more actions than they are allowed.
+This means that if a user is allowed 5 actions per 60 seconds, any action will be blocked if 5 actions have already occured in the preceeding 60 seconds, without any set points at which this interval resets. This contrasts with some other rate limiter implementations, in which a user could make 5 requests at 0:59 and another 5 requests at 1:01.
 
-Sorted sets provide a more robust and scalable way to implement rate limiters. By using a sorted set to store the times of recent actions, we can ensure that all operations are performed atomically, preventing race conditions. This also allows us to use one limiter for multiple rates, such as limiting the number of actions per minute and per second.
+**Important Note:** As a consequence of the way the Redis algorithm works, if an action is blocked, it is still "counted". This means that if a user is continually attempting actions more quickly than the allowed rate, all of their actions will be blocked until they pause or slow their requests.
 
 ## How it works
 
-To implement a rate limiter using a sorted set, we can use the following algorithm:
+- Each identifier/user corresponds to a sorted set data structure. The keys and values are both equal to the (microsecond) times at which actions were attempted, allowing easy manipulation of this list.
+- When a new action comes in for a user, all elements in the set that occurred earlier than (current time - interval) are dropped from the set.
+- If the number of elements in the set is still greater than the maximum, the current action is blocked.
+- If a minimum difference has been set and the most recent previous element is too close to the current time, the current action is blocked.
+- The current action is then added to the set.
+- Note: if an action is blocked, it is still added to the set. This means that if a user is continually attempting actions more quickly than the allowed rate, all of their actions will be blocked until they pause or slow their requests.
+- If the limiter uses a redis instance, the keys are prefixed with namespace, allowing a single redis instance to support separate rate limiters.
+- All redis operations for a single rate-limit check/update are performed as an atomic transaction, allowing rate limiters running on separate processes or machines to share state safely.
 
-- Create a sorted set for each user.
-- When a user attempts to perform an action:
-  - Drop all elements of the set which occurred before one interval ago.
-- Fetch all elements of the set.
-- Add the current timestamp to the set.
-- Set a TTL equal to the rate-limiting interval on the set.
-- Count the number of fetched elements. If it exceeds the limit, don't allow the action.
-- Compare the largest fetched element to the current timestamp. If they're too close, don't allow the action.
-
-Credits: Peter Hayes - https://engineering.classdojo.com/blog/2015/02/06/rolling-rate-limiter/
+Credits: [Peter Hayes](https://github.com/peterkhayes/rolling-rate-limiter)
 
 **Benefits**
 
-Atomic operations prevent race conditions.
-One limiter for multiple rates.
-More efficient and scalable.
+- Atomic operations. ✅✅✅
+- Use Redis sorted sets to prevent race conditions. 🏃🏼‍♂️🏃🏻‍♀️
+- Multiple rate limiters can share one Redis instance with different namespaces. 📁
+- More efficient and scalable. 🚀
 
 **Caveats**
 
@@ -35,9 +34,7 @@ Blocked actions still count as actions. So, if a user continually exceeds the ra
 
 ## Installation
 
-To install the gem, run the following command:
-
-`gem install rack-rate_limiter`
+TODO: Publish to rubygems
 
 ## Usage
 
@@ -47,7 +44,7 @@ To use the middleware, add it to your `config/application.rb`:
 
 ```ruby
 # Max request limit.
-limit = 100
+limit = 5
 
 # Interval in seconds.
 interval = 60
@@ -61,8 +58,8 @@ limiter = Rack::RateLimiter::RedisLimiter.new(limit:, interval:, redis:)
 # Redis key is resolved using the user IP address from the http request
 key_resolver = Rack::RateLimiter::HTTPRequestResolver.new('REMOTE_ADDR')
 
-# Key resolver also supports optional key "namespace":
-#   namespace = 'your-namespace'
+# HTTP request resolver supports optional "namespace":
+#   namespace = 'your-namespace' # A string to prepend to all keys to prevent conflicts with other code using Redis.
 #   key_resolver = Rack::RateLimiter::HTTPRequestResolver.new('REMOTE_ADDR', namespace:)
 
 # Set failed response, returned when limit is exceeded.
