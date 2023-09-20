@@ -23,10 +23,10 @@ Credits: [Peter Hayes](https://github.com/peterkhayes/rolling-rate-limiter)
 
 **Benefits**
 
-- Atomic operations. ✅✅✅
-- Use Redis sorted sets to prevent race conditions. 🏃🏼‍♂️🏃🏻‍♀️
-- Multiple rate limiters can share one Redis instance with different namespaces. 📁
-- More efficient and scalable. 🚀
+- Atomic operations ✅✅✅
+- Use Redis sorted sets to prevent race conditions 🏃🏼‍♂️🏃🏻‍♀️
+- Multiple rate limiters can share one Redis instance with different namespaces 📁
+- More efficient and scalable 🚀
 
 **Caveats**
 
